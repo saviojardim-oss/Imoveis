@@ -4,24 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Consulta Imobiliária</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f8f9fa; margin: 0; padding: 30px 15px; color: #333; }
         .container { max-width: 100%; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { color: #1e3a8a; margin-top: 0; font-size: 24px; text-align: center; }
         
-        /* Barra de Busca */
         .search-container { position: relative; max-width: 600px; margin: 0 auto 25px auto; }
         .search-box { width: 100%; padding: 14px 20px; font-size: 16px; border: 2px solid #cbd5e1; border-radius: 30px; outline: none; transition: all 0.3s; }
         .search-box:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); }
         
-        /* Contador de Resultados */
         .contador { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
 
-        /* Tabela Responsiva */
-        .table-responsive { overflow-x: auto; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .table-responsive { overflow-x: auto; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 8px; max-height: 600px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-        th { background-color: #1e3a8a; color: white; padding: 12px 10px; font-weight: 600; white-space: nowrap; }
+        th { background-color: #1e3a8a; color: white; padding: 12px 10px; font-weight: 600; position: sticky; top: 0; z-index: 10; }
         td { padding: 10px; border-bottom: 1px solid #e2e8f0; color: #475569; }
         tr:nth-child(even) { background-color: #f8fafc; }
         tr:hover { background-color: #f1f5f9; }
@@ -62,8 +60,7 @@
                 </tr>
             </thead>
             <tbody id="corpo-tabela">
-                <!-- Os dados vão aparecer aqui -->
-            </tbody>
+                </tbody>
         </table>
     </div>
     <div id="status-mensagem" class="carregando">Buscando arquivo CSV...</div>
@@ -72,59 +69,39 @@
 <script>
     let dadosImoveis = [];
 
-    // Função para ler o CSV considerando que pode haver vírgulas dentro de aspas
-    function parseCSV(text) {
-        let lines = text.split('\n');
-        let result = [];
-        let headers = lines[0].split(',').map(h => h.trim());
-
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
+    // Carrega e processa o CSV usando o PapaParse de forma ultra rápida
+    // Mudei o nome aqui para 'resultado (10).csv'. Se você mudou para 'dados.csv', altere aqui embaixo também!
+    Papa.parse('resultado (10).csv', {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            dadosImoveis = results.data;
             
-            // Expressão regular para separar por vírgula, ignorando vírgulas dentro de aspas
-            let matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
-            let obj = {};
-            
-            headers.forEach((header, index) => {
-                let valor = matches[index] ? matches[index].replace(/^"|"$/g, '').trim() : '';
-                obj[header] = valor;
-            });
-            result.push(obj);
-        }
-        return result;
-    }
-
-    // Carrega o seu arquivo CSV automaticamente
-    // IMPORTANTE: O nome do arquivo aqui deve ser igual ao seu arquivo real
-    fetch('resultado (10).csv') 
-        .then(response => {
-            if (!response.ok) throw new Error('Não foi possível carregar o arquivo CSV.');
-            return response.text();
-        })
-        .then(textoCsv => {
-            dadosImoveis = parseCSV(textoCsv);
-            
-            // Ativa o campo de busca após carregar tudo
             const input = document.getElementById('search-input');
             input.disabled = false;
             input.placeholder = "Busque por Proprietário, CPF, Inscrição, Bairro...";
             document.getElementById('status-mensagem').style.display = 'none';
             
-            exibirDados(dadosImoveis);
-        })
-        .catch(erro => {
-            console.error(erro);
-            document.getElementById('status-mensagem').innerText = "Erro ao carregar o arquivo CSV. Certifique-se de que o arquivo está na mesma pasta e que você está usando um servidor local (como Live Server).";
+            // Limitamos a exibição inicial aos primeiros 100 itens para o site carregar instantaneamente
+            exibirDados(dadosImoveis.slice(0, 100), dadosImoveis.length);
+        },
+        error: function(err) {
+            console.error("Erro ao ler o CSV:", err);
+            document.getElementById('status-mensagem').innerText = "Erro ao carregar o arquivo CSV. Verifique o nome do arquivo.";
             document.getElementById('status-mensagem').style.color = 'red';
-        });
+        }
+    });
 
     // Função para jogar os dados na tabela HTML
-    function exibirDados(lista) {
+    function exibirDados(lista, totalGeral = null) {
         const corpoTabela = document.getElementById('corpo-tabela');
         const contador = document.getElementById('contador-resultados');
         corpoTabela.innerHTML = "";
         
-        contador.innerText = `${lista.length} registro(s) encontrado(s)`;
+        // Mostra o total de itens encontrados
+        let totalExibido = totalGeral !== null ? totalGeral : lista.length;
+        contador.innerText = `${totalExibido} registro(s) encontrado(s).` + (lista.length === 100 ? " (Exibindo os primeiros 100 resultados para poupar memória)" : "");
 
         if (lista.length === 0) {
             corpoTabela.innerHTML = `<tr><td colspan="14" class="sem-resultados">Nenhum registro encontrado para essa busca.</td></tr>`;
@@ -153,17 +130,22 @@
         });
     }
 
-    // Filtro de pesquisa em tempo real
+    // Filtro de pesquisa inteligente e rápido
     document.getElementById('search-input').addEventListener('input', (e) => {
-        const termo = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove acentos na busca
+        const termo = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         
+        if (!termo) {
+            exibirDados(dadosImoveis.slice(0, 100), dadosImoveis.length);
+            return;
+        }
+
         const filtrados = dadosImoveis.filter(item => {
-            // Transforma os dados em texto simples e remove acentos para comparar
             const textoLinha = Object.values(item).join(' ').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return textoLinha.includes(termo);
         });
 
-        exibirDados(filtrados);
+        // Exibe apenas as primeiras 100 correspondências encontradas para manter a busca em tempo real super fluida
+        exibirDados(filtrados.slice(0, 100), filtrados.length);
     });
 </script>
 
