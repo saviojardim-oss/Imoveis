@@ -69,9 +69,8 @@
 <script>
     let dadosImoveis = [];
 
-    // Carrega e processa o CSV usando o PapaParse de forma ultra rápida
-    // Mudei o nome aqui para 'resultado (10).csv'. Se você mudou para 'dados.csv', altere aqui embaixo também!
-    Papa.parse('resultado (10).csv', {
+    // Lendo o arquivo simplificado 'dados.csv' usando PapaParse
+    Papa.parse('dados.csv', {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -83,23 +82,22 @@
             input.placeholder = "Busque por Proprietário, CPF, Inscrição, Bairro...";
             document.getElementById('status-mensagem').style.display = 'none';
             
-            // Limitamos a exibição inicial aos primeiros 100 itens para o site carregar instantaneamente
+            // Exibe os primeiros 100 itens para o carregamento inicial ser instantâneo
             exibirDados(dadosImoveis.slice(0, 100), dadosImoveis.length);
         },
         error: function(err) {
             console.error("Erro ao ler o CSV:", err);
-            document.getElementById('status-mensagem').innerText = "Erro ao carregar o arquivo CSV. Verifique o nome do arquivo.";
+            document.getElementById('status-mensagem').innerText = "Erro ao carregar o arquivo CSV. Certifique-se de que o arquivo na pasta se chama exatamente 'dados.csv'.";
             document.getElementById('status-mensagem').style.color = 'red';
         }
     });
 
-    // Função para jogar os dados na tabela HTML
+    // Função para renderizar os dados na tabela
     function exibirDados(lista, totalGeral = null) {
         const corpoTabela = document.getElementById('corpo-tabela');
         const contador = document.getElementById('contador-resultados');
         corpoTabela.innerHTML = "";
         
-        // Mostra o total de itens encontrados
         let totalExibido = totalGeral !== null ? totalGeral : lista.length;
         contador.innerText = `${totalExibido} registro(s) encontrado(s).` + (lista.length === 100 ? " (Exibindo os primeiros 100 resultados para poupar memória)" : "");
 
@@ -130,7 +128,7 @@
         });
     }
 
-    // Filtro de pesquisa inteligente e rápido
+    // Filtro de pesquisa rápido com remoção de acentos
     document.getElementById('search-input').addEventListener('input', (e) => {
         const termo = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         
@@ -144,7 +142,6 @@
             return textoLinha.includes(termo);
         });
 
-        // Exibe apenas as primeiras 100 correspondências encontradas para manter a busca em tempo real super fluida
         exibirDados(filtrados.slice(0, 100), filtrados.length);
     });
 </script>
